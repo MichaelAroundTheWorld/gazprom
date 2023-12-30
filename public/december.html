@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Goal Pie Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f7d9e2;
+        }
+
+        #pieChartContainer {
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #pieChartContainer1 {
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #earnedValueText {
+            margin-top: 20px;
+        }
+
+        #earnedAmount {
+            margin-top: 20px;
+        }
+
+        #heartIcon {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            fill: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Прогресс моей звездочки</h1>
+    <div id="pieChartContainer">
+        <svg id="heartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <canvas id="pieChart"></canvas>
+    </div>
+    <p id="earnedValueText">Ты уже заработала <span id="earnedValue">0</span></p>
+    <form id="earningsForm">
+        <label for="earnedAmount">Введите заработнную сумму:</label>
+        <input type="number" id="earnedAmount" name="earnedAmount" required>
+        <button type="button" onclick="updateDataAndChart()">Добавить в копилку</button>
+    </form>
+    <button onclick="navigate('/')" style="margin-top: 2%;">Общий отчет</button>
+    <button onclick="navigate('/december')">Декабрь</button>
+    <button onclick="navigate('/january')">Январь</button>
+    <button onclick="navigate('/february')">Февраль</button>
+    <button onclick="navigate('/march')">Март</button>
+    <script>
+        function navigate(path) {
+            window.location.href = path;
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePieChart();
+        });
+
+        async function updateDataAndChart() {
+            const earnedAmountInput = document.getElementById('earnedAmount');
+            const newValue = parseFloat(earnedAmountInput.value) || 0;
+
+            // Send an asynchronous request to update the JSON data on the server
+            const response = await fetch('/updateDecember', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ earnedAmount: newValue }),
+            });
+
+            if (response.ok) {
+                // If the update was successful, update the pie chart
+                updatePieChart();
+            } else {
+                console.error('Update failed');
+            }
+        }
+
+        async function updatePieChart() {
+            // Fetch the JSON data from the server
+            const response = await fetch('/getData');
+            const data = await response.json();
+
+            // Extract the earned amount from the JSON data
+            const earnedAmount = data.december_earned || 0;
+
+            const totalAmount = 20000; // Replace with your financial goal
+            const percentage = Math.min((earnedAmount / totalAmount) * 100, 100);
+
+            const pieChartContainer = document.getElementById('pieChartContainer');
+            const pieChartCanvas = document.getElementById('pieChart');
+            const earnedValueText = document.getElementById('earnedValue');
+            const earnedValue = `${earnedAmount.toFixed(2)}, представляешь?`;
+
+            // Update the earned value text
+            earnedValueText.textContent = earnedValue;
+
+            // Destroy the previous chart instance to avoid conflicts
+            if (window.myPieChart) {
+                window.myPieChart.destroy();
+            }
+
+            // Create a new pie chart
+            const ctx = pieChartCanvas.getContext('2d');
+            window.myPieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Заработано %', 'Осталось %'],
+                    datasets: [{
+                        data: [percentage, 100 - percentage],
+                        backgroundColor: ['#2ecc71', '#ecf0f1'],
+                        borderColor: ['#2ecc71', '#ecf0f1'],
+                        hoverOffset: 4, // Add some offset for better hover effect
+                    }],
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            display: true,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return context.label + ': ' + context.parsed.toFixed(2) + '%';
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+        }
+    </script>
+</body>
+</html>
